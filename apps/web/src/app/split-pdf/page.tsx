@@ -25,6 +25,10 @@ export default function SplitPdfPage() {
   const [fixedSize, setFixedSize] = useState<number>(1);
   const [pagesPerFile, setPagesPerFile] = useState<number>(1);
   const [sizeLimit, setSizeLimit] = useState<number>(10);
+  const [extractMode, setExtractMode] = useState<'extractAll' | 'select'>('extractAll');
+  const [selectedPagesText, setSelectedPagesText] = useState<string>('');
+  const [selectedPages, setSelectedPages] = useState<number[]>([]);
+  const [parsedError, setParsedError] = useState<string | null>(null);
 
   const [status, setStatus] = useState<string>('IDLE');
   const [progress, setProgress] = useState<number>(0);
@@ -120,6 +124,46 @@ export default function SplitPdfPage() {
     return Math.ceil(fileSize / (sizeLimit * 1024 * 1024));
   };
 
+  const parsePageSelection = (text: string): number[] => {
+    const result: number[] = [];
+    const parts = text.split(',').map(p => p.trim());
+    for (const part of parts) {
+      if (!part) continue;
+      const rangeMatch = part.match(/^(\d+)\s*-\s*(\d+)$/);
+      if (rangeMatch) {
+        const start = parseInt(rangeMatch[1]);
+        const end = parseInt(rangeMatch[2]);
+        if (start > 0 && end >= start) {
+          for (let p = start; p <= end; p++) result.push(p);
+        }
+      } else {
+        const num = parseInt(part);
+        if (!isNaN(num) && num > 0) result.push(num);
+      }
+    }
+    return [...new Set(result)].sort((a, b) => a - b);
+  };
+
+  const handleSelectedPagesChange = (text: string) => {
+    setSelectedPagesText(text);
+    setParsedError(null);
+    if (!text.trim()) {
+      setSelectedPages([]);
+      return;
+    }
+    const pages = parsePageSelection(text);
+    if (pages.length === 0) {
+      setParsedError('No valid page numbers found');
+      setSelectedPages([]);
+    } else {
+      const invalid = pages.filter(p => p > totalPages);
+      if (invalid.length > 0 && totalPages > 0) {
+        setParsedError(`Page${invalid.length > 1 ? 's' : ''} ${invalid.join(', ')} exceed${invalid.length > 1 ? '' : 's'} total (${totalPages})`);
+      }
+      setSelectedPages(pages);
+    }
+  };
+
   const startSplit = async () => {
     if (!filePath) { setError('Please select a PDF file first'); return; }
     setError(null);
@@ -140,8 +184,12 @@ export default function SplitPdfPage() {
           splitData.fixedSize = fixedSize;
         }
       } else if (splitMode === 'pages') {
-        if (!pagesPerFile || pagesPerFile <= 0) throw new Error('Please enter a valid number');
-        splitData.pagesPerFile = pagesPerFile;
+        if (extractMode === 'extractAll') {
+          splitData.pagesPerFile = 1;
+        } else {
+          if (selectedPages.length === 0) throw new Error('Please enter at least one page to extract');
+          splitData.selectedPages = selectedPages;
+        }
       } else if (splitMode === 'size') {
         if (!sizeLimit || sizeLimit <= 0) throw new Error('Please enter a valid size limit');
         splitData.sizeLimit = sizeLimit;
@@ -179,6 +227,7 @@ export default function SplitPdfPage() {
     setFile(null); setFilePath(''); setFileName(''); setFileSize(0); setTotalPages(0);
     setStatus('IDLE'); setProgress(0); setError(null); setSplitJobId(null); setOutputFiles([]);
     setRanges([{ id: '1', from: 1, to: 1 }]); setFixedSize(1); setPagesPerFile(1); setSizeLimit(10);
+    setExtractMode('extractAll'); setSelectedPagesText(''); setSelectedPages([]); setParsedError(null);
   };
 
   const hasFile = status !== 'IDLE';
@@ -199,8 +248,8 @@ export default function SplitPdfPage() {
                     </svg>
                   </div>
                 </div>
-                <h1 className="text-3xl font-bold text-slate-800 mb-2">Split PDF</h1>
-                <p className="text-slate-500 max-w-md mx-auto text-sm">Separate one page or a whole set for easy conversion into independent PDF files.</p>
+                <h1 className="text-3xl font-bold text-slate-800 dark:text-white mb-2">Split PDF</h1>
+                <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto text-sm">Separate one page or a whole set for easy conversion into independent PDF files.</p>
               </div>
 
               <div
@@ -208,7 +257,7 @@ export default function SplitPdfPage() {
                 onDragLeave={(e) => { e.preventDefault(); setLocalDragOver(false); }}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
-                className={`rounded-2xl border-2 border-dashed p-14 text-center cursor-pointer transition-all duration-300 ${localDragOver ? 'border-purple-400 bg-purple-50 scale-[1.02]' : 'border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50'}`}
+                className={`rounded-2xl border-2 border-dashed p-14 text-center cursor-pointer transition-all duration-300 ${localDragOver ? 'border-purple-400 bg-purple-50 dark:bg-purple-900/20 scale-[1.02]' : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
               >
                 <div className="flex flex-col items-center gap-4">
                   <div className="w-20 h-20 rounded-full flex items-center justify-center" style={{ backgroundColor: `${ACCENT_COLOR}15` }}>
@@ -217,7 +266,7 @@ export default function SplitPdfPage() {
                     </svg>
                   </div>
                   <button type="button" className="px-8 py-3.5 text-white font-semibold rounded-xl text-base shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all" style={{ backgroundColor: ACCENT_COLOR }}>Select PDF file</button>
-                  <p className="text-slate-400 text-sm">or drop PDF here</p>
+                  <p className="text-slate-400 dark:text-slate-500 text-sm">or drop PDF here</p>
                 </div>
               </div>
               <div className="mt-4">
@@ -232,19 +281,19 @@ export default function SplitPdfPage() {
 
               {/* LEFT: Page Preview */}
               <div className="lg:col-span-3">
-                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
                   {/* File bar */}
-                  <div className="px-4 py-2.5 border-b border-slate-200 flex items-center gap-3" style={{ backgroundColor: `${ACCENT_COLOR}05` }}>
+                  <div className="px-4 py-2.5 border-b border-slate-200 dark:border-slate-700 flex items-center gap-3" style={{ backgroundColor: `${ACCENT_COLOR}05` }}>
                     <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${ACCENT_COLOR}15` }}>
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke={ACCENT_COLOR} strokeWidth={1.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                       </svg>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-800 truncate">{fileName}</p>
-                      <p className="text-[11px] text-slate-400">{formatFileSize(fileSize)}{totalPages > 0 ? ` • ${totalPages} pages` : ''}</p>
+                      <p className="text-sm font-medium text-slate-800 dark:text-white truncate">{fileName}</p>
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500">{formatFileSize(fileSize)}{totalPages > 0 ? ` • ${totalPages} pages` : ''}</p>
                     </div>
-                    <button onClick={reset} className="text-[11px] text-slate-400 hover:text-red-500 transition-colors font-medium px-2 py-1 rounded hover:bg-red-50">Change file</button>
+                    <button onClick={reset} className="text-[11px] text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors font-medium px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20">Change file</button>
                   </div>
 
                   {status === 'PROCESSING' && (
@@ -253,8 +302,8 @@ export default function SplitPdfPage() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                       </svg>
-                      <h3 className="text-lg font-bold text-slate-800 mb-2">Splitting PDF...</h3>
-                      <div className="w-full max-w-xs mx-auto bg-slate-100 rounded-full h-2.5 overflow-hidden mt-4">
+                      <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">Splitting PDF...</h3>
+                      <div className="w-full max-w-xs mx-auto bg-slate-100 dark:bg-slate-700 rounded-full h-2.5 overflow-hidden mt-4">
                         <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progress}%`, backgroundColor: ACCENT_COLOR }} />
                       </div>
                     </div>
@@ -263,33 +312,33 @@ export default function SplitPdfPage() {
                   {status === 'COMPLETED' && (
                     <div className="p-5">
                       <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-sm font-semibold text-slate-800">✅ {outputFiles.length} file{outputFiles.length !== 1 ? 's' : ''} created</h3>
+                        <h3 className="text-sm font-semibold text-slate-800 dark:text-white">✅ {outputFiles.length} file{outputFiles.length !== 1 ? 's' : ''} created</h3>
                         {splitJobId && outputFiles.length > 1 && (
                           <a href={apiClient.getSplitDownloadAllUrl(splitJobId)} className="text-xs font-medium px-3 py-1.5 rounded-lg text-white hover:opacity-90" style={{ backgroundColor: ACCENT_COLOR }}>Download All (ZIP)</a>
                         )}
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                         {outputFiles.map((f, i) => (
-                          <div key={i} className="p-3 bg-slate-50 rounded-xl border border-slate-200 hover:border-slate-300 transition-colors">
+                          <div key={i} className="p-3 bg-slate-50 dark:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500 transition-colors">
                             <div className="w-full aspect-[3/4] rounded-lg mb-2 flex flex-col items-center justify-center" style={{ backgroundColor: `${ACCENT_COLOR}08` }}>
                               <svg className="w-8 h-8 mb-1" fill="none" viewBox="0 0 24 24" stroke={ACCENT_COLOR} strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
                               <span className="text-xs font-bold" style={{ color: ACCENT_COLOR }}>{f.pageCount}p</span>
                             </div>
-                            <p className="text-xs font-medium text-slate-700 truncate">{f.fileName}</p>
+                            <p className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate">{f.fileName}</p>
                             <div className="flex items-center justify-between mt-1">
-                              <span className="text-[10px] text-slate-400">{formatFileSize(f.size)}</span>
+                              <span className="text-[10px] text-slate-400 dark:text-slate-500">{formatFileSize(f.size)}</span>
                               {splitJobId && <a href={apiClient.getSplitDownloadUrl(splitJobId, i)} className="text-[10px] font-medium hover:underline" style={{ color: ACCENT_COLOR }}>Download</a>}
                             </div>
                           </div>
                         ))}
                       </div>
-                      <button onClick={reset} className="block mx-auto text-slate-500 hover:text-slate-700 text-sm font-medium mt-5">Split another PDF</button>
+                      <button onClick={reset} className="block mx-auto text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 text-sm font-medium mt-5">Split another PDF</button>
                     </div>
                   )}
 
                   {status === 'READY' && (
                     <div className="p-4">
-                      <PdfPagePreview totalPages={totalPages} ranges={ranges} rangeMode={rangeMode} fixedSize={fixedSize} splitMode={splitMode} pagesPerFile={pagesPerFile} accentColor={ACCENT_COLOR} filePath={filePath} onRangeUpdate={setRanges} />
+                      <PdfPagePreview totalPages={totalPages} ranges={ranges} rangeMode={rangeMode} fixedSize={fixedSize} splitMode={splitMode} pagesPerFile={pagesPerFile} accentColor={ACCENT_COLOR} filePath={filePath} onRangeUpdate={setRanges} extractMode={extractMode} selectedPages={selectedPages} />
                     </div>
                   )}
                 </div>
@@ -297,10 +346,10 @@ export default function SplitPdfPage() {
 
               {/* RIGHT: Split Options */}
               <div className="lg:col-span-2">
-                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden sticky top-20">
-                  <div className="flex border-b border-slate-200">
+                <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden sticky top-20">
+                  <div className="flex border-b border-slate-200 dark:border-slate-700">
                     {(['range', 'pages', 'size'] as const).map((mode) => (
-                      <button key={mode} onClick={() => setSplitMode(mode)} className={`flex-1 py-3 text-xs font-medium transition-colors relative ${splitMode === mode ? 'text-slate-800' : 'text-slate-400 hover:text-slate-600'}`}>
+                      <button key={mode} onClick={() => setSplitMode(mode)} className={`flex-1 py-3 text-xs font-medium transition-colors relative ${splitMode === mode ? 'text-slate-800 dark:text-white' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}>
                         {mode === 'range' ? 'By Range' : mode === 'pages' ? 'By Pages' : 'By Size'}
                         {splitMode === mode && <div className="absolute bottom-0 left-0 right-0 h-0.5" style={{ backgroundColor: ACCENT_COLOR }} />}
                       </button>
@@ -310,9 +359,9 @@ export default function SplitPdfPage() {
                   <div className="p-5">
                     {splitMode === 'range' && (
                       <div>
-                        <div className="flex bg-slate-100 rounded-lg p-1 mb-5">
-                          <button onClick={() => setRangeMode('custom')} className={`flex-1 py-2 text-xs font-medium rounded-md transition-all ${rangeMode === 'custom' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>Custom Ranges</button>
-                          <button onClick={() => setRangeMode('fixed')} className={`flex-1 py-2 text-xs font-medium rounded-md transition-all ${rangeMode === 'fixed' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>Fixed Size</button>
+                        <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-1 mb-5">
+                          <button onClick={() => setRangeMode('custom')} className={`flex-1 py-2 text-xs font-medium rounded-md transition-all ${rangeMode === 'custom' ? 'bg-white dark:bg-slate-600 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}>Custom Ranges</button>
+                          <button onClick={() => setRangeMode('fixed')} className={`flex-1 py-2 text-xs font-medium rounded-md transition-all ${rangeMode === 'fixed' ? 'bg-white dark:bg-slate-600 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}>Fixed Size</button>
                         </div>
 
                         {rangeMode === 'custom' && (
@@ -324,11 +373,11 @@ export default function SplitPdfPage() {
                                   <div className="flex items-center gap-2 flex-1">
                                     <div className="flex-1">
                                       <label className="text-[10px] text-slate-400 mb-0.5 block">From page</label>
-                                      <input type="number" min={1} max={totalPages || 1} value={range.from} onChange={(e) => updateRange(range.id, 'from', parseInt(e.target.value) || 1)} className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
+                                      <input type="number" min={1} max={totalPages || 1} value={range.from} onChange={(e) => updateRange(range.id, 'from', parseInt(e.target.value) || 1)} className="w-full px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
                                     </div>
                                     <div className="flex-1">
                                       <label className="text-[10px] text-slate-400 mb-0.5 block">To page</label>
-                                      <input type="number" min={1} max={totalPages || 1} value={range.to} onChange={(e) => updateRange(range.id, 'to', parseInt(e.target.value) || 1)} className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
+                                      <input type="number" min={1} max={totalPages || 1} value={range.to} onChange={(e) => updateRange(range.id, 'to', parseInt(e.target.value) || 1)} className="w-full px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
                                     </div>
                                   </div>
                                   {ranges.length > 1 && (
@@ -339,7 +388,7 @@ export default function SplitPdfPage() {
                                 </div>
                               ))}
                             </div>
-                            <button onClick={addRange} className="mt-3 w-full py-2 border-2 border-dashed border-slate-300 rounded-lg text-xs font-medium text-slate-500 hover:border-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all flex items-center justify-center gap-1">
+                            <button onClick={addRange} className="mt-3 w-full py-2 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg text-xs font-medium text-slate-500 dark:text-slate-400 hover:border-slate-400 dark:hover:border-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all flex items-center justify-center gap-1">
                               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
                               Add Range
                             </button>
@@ -353,8 +402,8 @@ export default function SplitPdfPage() {
 
                         {rangeMode === 'fixed' && (
                           <div>
-                            <label className="text-sm text-slate-600 font-medium mb-2 block">Split into page ranges of:</label>
-                            <input type="number" min={1} max={totalPages || 1} value={fixedSize} onChange={(e) => setFixedSize(parseInt(e.target.value) || 1)} className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
+                            <label className="text-sm text-slate-600 dark:text-slate-300 font-medium mb-2 block">Split into page ranges of:</label>
+                            <input type="number" min={1} max={totalPages || 1} value={fixedSize} onChange={(e) => setFixedSize(parseInt(e.target.value) || 1)} className="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
                             {totalPages > 0 && fixedSize > 0 && (
                               <div className="mt-4 p-2.5 rounded-lg text-xs" style={{ backgroundColor: `${ACCENT_COLOR}08` }}>
                                 <p style={{ color: ACCENT_COLOR }}>
@@ -370,14 +419,65 @@ export default function SplitPdfPage() {
 
                     {splitMode === 'pages' && (
                       <div>
-                        <label className="text-sm text-slate-600 font-medium mb-2 block">Extract every N pages:</label>
-                        <input type="number" min={1} max={totalPages || 1} value={pagesPerFile} onChange={(e) => setPagesPerFile(parseInt(e.target.value) || 1)} className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
-                        {totalPages > 0 && pagesPerFile > 0 && (
-                          <div className="mt-4 p-2.5 rounded-lg text-xs" style={{ backgroundColor: `${ACCENT_COLOR}08` }}>
-                            <p style={{ color: ACCENT_COLOR }}>
-                              Every <strong>{pagesPerFile} page{pagesPerFile !== 1 ? 's' : ''}</strong> → separate file.{' '}
-                              <strong>{Math.ceil(totalPages / pagesPerFile)} PDF{Math.ceil(totalPages / pagesPerFile) !== 1 ? 's' : ''}</strong> will be created.
-                            </p>
+                        <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 mb-5">
+                          <button onClick={() => setExtractMode('extractAll')} className={`flex-1 py-2 text-xs font-medium rounded-md transition-all ${extractMode === 'extractAll' ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}>Extract All Pages</button>
+                          <button onClick={() => setExtractMode('select')} className={`flex-1 py-2 text-xs font-medium rounded-md transition-all ${extractMode === 'select' ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}>Select Pages</button>
+                        </div>
+
+                        {extractMode === 'extractAll' && (
+                          <div>
+                            <p className="text-sm text-slate-600 dark:text-slate-300 mb-2">Each page will be extracted as its own PDF file.</p>
+                            {totalPages > 0 && (
+                              <div className="mt-4 p-2.5 rounded-lg text-xs" style={{ backgroundColor: `${ACCENT_COLOR}08` }}>
+                                <p style={{ color: ACCENT_COLOR }}>
+                                  <strong>{totalPages} PDF{totalPages !== 1 ? 's' : ''}</strong> will be created — one per page.
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {extractMode === 'select' && (
+                          <div>
+                            <label className="text-sm text-slate-600 dark:text-slate-300 font-medium mb-2 block">Pages to extract:</label>
+                            <input
+                              type="text"
+                              value={selectedPagesText}
+                              onChange={(e) => handleSelectedPagesChange(e.target.value)}
+                              placeholder="e.g. 1,5-8,10,23-30"
+                              className="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 font-mono"
+                            />
+                            <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5">Enter page numbers or ranges separated by commas.</p>
+                            {parsedError && (
+                              <p className="text-[11px] text-red-500 mt-1">{parsedError}</p>
+                            )}
+                            {selectedPages.length > 0 && !parsedError && (
+                              <div className="mt-4 p-2.5 rounded-lg text-xs" style={{ backgroundColor: `${ACCENT_COLOR}08` }}>
+                                <p style={{ color: ACCENT_COLOR }}>
+                                  <strong>{selectedPages.length}</strong> page{selectedPages.length !== 1 ? 's' : ''} selected → <strong>{selectedPages.length} PDF{selectedPages.length !== 1 ? 's' : ''}</strong> will be created.
+                                </p>
+                              </div>
+                            )}
+                            {totalPages > 0 && (
+                              <div className="mt-3 flex flex-wrap gap-1">
+                                {Array.from({ length: Math.min(totalPages, 50) }, (_, i) => i + 1).map((p) => (
+                                  <button
+                                    key={p}
+                                    onClick={() => {
+                                      const text = selectedPagesText ? selectedPagesText + ',' + p : String(p);
+                                      handleSelectedPagesChange(text);
+                                    }}
+                                    className={`w-7 h-7 text-[10px] font-medium rounded transition-all ${
+                                      selectedPages.includes(p)
+                                        ? 'bg-green-500 text-white'
+                                        : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
+                                    }`}
+                                  >
+                                    {p}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -385,16 +485,16 @@ export default function SplitPdfPage() {
 
                     {splitMode === 'size' && (
                       <div>
-                        <label className="text-sm text-slate-600 font-medium mb-2 block">Max file size (MB):</label>
+                        <label className="text-sm text-slate-600 dark:text-slate-300 font-medium mb-2 block">Max file size (MB):</label>
                         <input
                           type="number"
                           min={0.1}
                           step={0.1}
                           value={sizeLimit}
                           onChange={(e) => setSizeLimit(parseFloat(e.target.value) || 0.1)}
-                          className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
+                          className="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
                         />
-                        <p className="text-[11px] text-slate-400 mt-1.5">Each output file will be at or below this size. If a single page exceeds the limit, it will be included as its own file.</p>
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5">Each output file will be at or below this size. If a single page exceeds the limit, it will be included as its own file.</p>
                         {fileSize > 0 && sizeLimit > 0 && (
                           <div className="mt-4 p-2.5 rounded-lg text-xs" style={{ backgroundColor: `${ACCENT_COLOR}08` }}>
                             <p style={{ color: ACCENT_COLOR }}>
@@ -419,7 +519,7 @@ export default function SplitPdfPage() {
           )}
 
           {error && status !== 'FAILED' && (
-            <div className="mt-4 max-w-xl mx-auto p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm text-center animate-fade-in-up">
+            <div className="mt-4 max-w-xl mx-auto p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm text-center animate-fade-in-up">
               <span className="font-medium">Error:</span> {error}
             </div>
           )}

@@ -89,7 +89,7 @@ export default function FileUploader({ onFileSelect, onCloudFileReady, isProcess
           ${isProcessing ? 'pointer-events-none opacity-60' : ''}
           ${isDragOver 
             ? 'border-blue-400 bg-blue-50 scale-[1.02]' 
-            : 'border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50'
+            : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700'
           }
         `}
         style={isDragOver ? { borderColor: accentColor, backgroundColor: `${accentColor}10` } : {}}
@@ -117,7 +117,7 @@ export default function FileUploader({ onFileSelect, onCloudFileReady, isProcess
             Select PDF file
           </button>
 
-          <p className="text-slate-400 text-sm">or drop PDF here</p>
+          <p className="text-slate-400 dark:text-slate-500 text-sm">or drop PDF here</p>
         </div>
 
         <input
@@ -140,7 +140,7 @@ export default function FileUploader({ onFileSelect, onCloudFileReady, isProcess
       </div>
 
       {error && (
-        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm text-center animate-fade-in-up">
+        <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm text-center animate-fade-in-up">
           <span className="font-medium">Error:</span> {error}
         </div>
       )}

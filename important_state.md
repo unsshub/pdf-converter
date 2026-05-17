@@ -15,7 +15,7 @@
 - [x] Split PDF — Split by Size: Backend algorithm (`splitBySize`) implemented + unit tested (3 tests pass)
 - [x] Split PDF — Split by Size: Wired into `processSplit` (size mode branch added)
 - [x] Split PDF — Split by Size: Frontend "Coming soon" replaced with MB input + submission wiring
-- [ ] Split PDF — Split by Size: **END-TO-END VERIFICATION BLOCKED** — PostgreSQL not running
+- [x] Split PDF — Split by Size: **END-TO-END VERIFIED** — All split modes (range, pages, size) tested and working
 
 ## Not Started
 - [ ] PDF to PowerPoint (defined in TOOLS constant only)
@@ -24,12 +24,11 @@
 - [ ] Rotate PDF (defined in TOOLS constant only)
 
 ## Active Bugs / Blockers
-- **BLOCKER: PostgreSQL is DOWN** — `Can't reach database server at localhost:5433`. All split modes (range, pages, size) fail at `prisma.splitJob.create()`. Docker container likely not started.
-- Split PDF button appears non-functional in ALL modes (not just size) — caused by the DB blocker above.
+- **RESOLVED: sizeLimit data flow bug** — Route handler (`apps/api/src/routes/split.ts:58`) was not destructuring `sizeLimit` from `req.body`. Fixed and verified end-to-end.
 
 ## System Status
-- PostgreSQL: **DOWN** (Docker, should be host port 5433)
-- Redis: Unknown status (graceful fallback if down)
-- API: Running on port 3001
-- Web: Running on port 3000
+- PostgreSQL: **RUNNING** (native, host port 5433)
+- Redis: **RUNNING** (native, port 6379)
+- API: Runs on port 3001
+- Web: Runs on port 3000
 - Python .venv: Project root or CWD fallback

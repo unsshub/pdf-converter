@@ -31,8 +31,8 @@ export default function PdfToWordPage() {
                   </svg>
                 </div>
               </div>
-              <h1 className="text-3xl font-bold text-slate-800 mb-2">PDF to Word</h1>
-              <p className="text-slate-500 max-w-md mx-auto text-sm">Easily convert your PDF files into easy to edit DOC and DOCX documents. The converted file is fully editable with incredible accuracy.</p>
+              <h1 className="text-3xl font-bold text-slate-800 dark:text-white mb-2">PDF to Word</h1>
+              <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto text-sm">Easily convert your PDF files into easy to edit DOC and DOCX documents. The converted file is fully editable with incredible accuracy.</p>
             </div>
           )}
 
@@ -41,12 +41,12 @@ export default function PdfToWordPage() {
           )}
 
           {status === 'FAILED' && (
-            <div className="bg-white rounded-2xl shadow-sm border border-red-200 p-8 text-center animate-fade-in-up">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-red-200 dark:border-red-800 p-8 text-center animate-fade-in-up">
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-50 flex items-center justify-center">
                 <svg className="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               </div>
-              <h3 className="text-xl font-bold text-slate-800 mb-2">Conversion Failed</h3>
-              <p className="text-slate-500 mb-6">{error || 'An unexpected error occurred. Please try again.'}</p>
+              <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Conversion Failed</h3>
+              <p className="text-slate-500 dark:text-slate-400 mb-6">{error || 'An unexpected error occurred. Please try again.'}</p>
               <button onClick={reset} className="px-6 py-2.5 text-white font-semibold rounded-xl text-sm shadow-lg hover:shadow-xl transition-all" style={{ backgroundColor: ACCENT_COLOR }}>Try Again</button>
             </div>
           )}

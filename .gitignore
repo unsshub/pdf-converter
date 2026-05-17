@@ -3,6 +3,10 @@ node_modules/
 .next/
 dist/
 uploads/
+outputs/
 *.log
 .DS_Store
 coverage/
+handoff-*.md
+repomix-output.xml
+skillsv2.txt

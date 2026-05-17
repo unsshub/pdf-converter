@@ -44,13 +44,13 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="py-16 md:py-20">
+        <section className="py-16 md:py-20 dark:bg-slate-900">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
-              <h2 className="text-2xl md:text-3xl font-bold text-slate-800 mb-2">
+              <h2 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-white mb-2">
                 All PDF Tools in One Place
               </h2>
-              <p className="text-slate-500 max-w-lg mx-auto">
+              <p className="text-slate-500 dark:text-slate-400 max-w-lg mx-auto">
                 Select a tool below to get started. Every tool is free and works right in your browser.
               </p>
             </div>
@@ -71,13 +71,13 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="py-12 bg-slate-50 border-t border-slate-200">
+        <section className="py-12 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <p className="text-sm text-slate-400 mb-4">Powered by</p>
-            <p className="text-lg font-semibold text-slate-600">
+            <p className="text-sm text-slate-400 dark:text-slate-500 mb-4">Powered by</p>
+            <p className="text-lg font-semibold text-slate-600 dark:text-slate-300">
               Solid Documents Conversion Engine
             </p>
-            <p className="text-sm text-slate-400 mt-2 max-w-md mx-auto">
+            <p className="text-sm text-slate-400 dark:text-slate-500 mt-2 max-w-md mx-auto">
               Industry-leading PDF conversion technology delivering incredible accuracy and preserving formatting, layouts, and fonts.
             </p>
           </div>

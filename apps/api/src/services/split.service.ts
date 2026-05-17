@@ -23,6 +23,7 @@ interface CreateSplitJobInput {
   fixedSize?: number;
   sizeLimit?: number;
   pagesPerFile?: number;
+  selectedPages?: number[];
 }
 
 class SplitService {
@@ -44,6 +45,7 @@ class SplitService {
         fixedSize: input.fixedSize || null,
         sizeLimit: input.sizeLimit || null,
         pagesPerFile: input.pagesPerFile || null,
+        selectedPages: input.selectedPages ? JSON.stringify(input.selectedPages) : null,
         status: 'PENDING',
         progress: 0,
       },
@@ -158,13 +160,23 @@ class SplitService {
           }
         }
       } else if (splitJob.splitMode === 'pages') {
-        // Split every N pages
-        const pagesPerFile = splitJob.pagesPerFile || 1;
-        for (let i = 1; i <= totalPages; i += pagesPerFile) {
-          splitRanges.push({
-            from: i,
-            to: Math.min(i + pagesPerFile - 1, totalPages),
-          });
+        if (splitJob.selectedPages) {
+          // Select pages mode — extract only specified page numbers
+          const selectedPages: number[] = JSON.parse(splitJob.selectedPages as string);
+          const validPages = selectedPages.filter((p: number) => p >= 1 && p <= totalPages);
+          if (validPages.length === 0) throw new Error('No valid pages selected');
+          for (const pageNum of validPages) {
+            splitRanges.push({ from: pageNum, to: pageNum });
+          }
+        } else {
+          // Extract every N pages (or each page individually)
+          const pagesPerFile = splitJob.pagesPerFile || 1;
+          for (let i = 1; i <= totalPages; i += pagesPerFile) {
+            splitRanges.push({
+              from: i,
+              to: Math.min(i + pagesPerFile - 1, totalPages),
+            });
+          }
         }
       } else if (splitJob.splitMode === 'size') {
         // Split by file size — sizeLimit is stored in MB, convert to bytes

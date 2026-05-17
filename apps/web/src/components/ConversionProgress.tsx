@@ -59,7 +59,7 @@ export default function ConversionProgress({
 
   return (
     <div className="w-full max-w-2xl mx-auto animate-fade-in-up">
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
         <div className="flex items-center gap-3 mb-5">
           <div 
             className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
@@ -70,18 +70,18 @@ export default function ConversionProgress({
             </svg>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-slate-800 truncate">{fileName}</p>
-            <p className="text-xs text-slate-400">{formatFileSize(fileSize)}</p>
+            <p className="text-sm font-medium text-slate-800 dark:text-white truncate">{fileName}</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500">{formatFileSize(fileSize)}</p>
           </div>
           {getStatusIcon()}
         </div>
 
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-600 font-medium">{getStatusText()}</span>
-            <span className="text-slate-500">{progress}%</span>
+            <span className="text-slate-600 dark:text-slate-300 font-medium">{getStatusText()}</span>
+            <span className="text-slate-500 dark:text-slate-400">{progress}%</span>
           </div>
-          <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+          <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2.5 overflow-hidden">
             <div
               className="h-full rounded-full transition-all duration-500 ease-out"
               style={{ 

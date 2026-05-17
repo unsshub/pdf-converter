@@ -69,7 +69,7 @@ export default function ToolCard({ title, description, icon, color, href, index 
   return (
     <Link 
       href={href}
-      className={`group relative bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-xl hover:border-transparent hover:-translate-y-1 transition-all duration-300 animate-fade-in-up stagger-${index + 1}`}
+      className={`group relative bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-xl hover:border-transparent hover:-translate-y-1 transition-all duration-300 animate-fade-in-up stagger-${index + 1}`}
       style={{
         ['--tool-color' as string]: color,
       }}
@@ -86,10 +86,10 @@ export default function ToolCard({ title, description, icon, color, href, index 
         <ToolIcon icon={icon} color={color} />
       </div>
 
-      <h3 className="text-lg font-semibold text-slate-800 mb-1 group-hover:text-slate-900">
+      <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-1 group-hover:text-slate-900 dark:group-hover:text-slate-100">
         {title}
       </h3>
-      <p className="text-sm text-slate-500 leading-relaxed">
+      <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
         {description}
       </p>
 

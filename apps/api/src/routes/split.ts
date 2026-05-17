@@ -55,14 +55,14 @@ splitRouter.post('/analyze', async (req: Request, res: Response, next: Function)
 // POST /api/split - Start a split job
 splitRouter.post('/', async (req: Request, res: Response, next: Function) => {
   try {
-    const { originalPath, originalName, fileSize, splitMode, ranges, fixedSize, pagesPerFile } = req.body;
+    const { originalPath, originalName, fileSize, splitMode, ranges, fixedSize, pagesPerFile, sizeLimit, selectedPages } = req.body;
     if (!originalPath || !originalName) throw new AppError('originalPath and originalName are required', 400);
     if (!fs.existsSync(path.resolve(originalPath))) throw new AppError('File not found on server', 400);
 
     const splitJob = await splitService.createSplitJob({
       originalPath, originalName, fileSize,
       splitMode: splitMode || 'range',
-      ranges, fixedSize, pagesPerFile,
+      ranges, fixedSize, pagesPerFile, sizeLimit, selectedPages,
     });
 
     splitService.processSplit(splitJob.id).catch((err) => {

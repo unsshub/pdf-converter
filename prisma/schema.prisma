@@ -66,6 +66,7 @@ model SplitJob {
   fixedSize    Int?
   sizeLimit    Int?
   pagesPerFile Int?
+  selectedPages String?
   status       String   @default("PENDING")
   progress     Int      @default(0)
   outputFiles  String?

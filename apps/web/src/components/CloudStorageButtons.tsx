@@ -137,7 +137,7 @@ export default function CloudStorageButtons({
       </div>
 
       {error && (
-        <div className="mt-3 p-2.5 bg-red-50 border border-red-200 rounded-lg text-red-600 text-xs text-center animate-fade-in-up">
+        <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-red-700 dark:text-red-400 text-xs text-center">
           {error}
         </div>
       )}

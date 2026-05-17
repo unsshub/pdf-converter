@@ -36,8 +36,8 @@
 - **Mitigation:** Verify the split route handler passes `sizeLimit` correctly. Test with a known-size PDF.
 - **Severity:** Medium (untested end-to-end)
 
-## RISK-007: Docker Infrastructure Availability
+## RISK-007: Infrastructure Availability
 - **Category:** Infrastructure
-- **Description:** PostgreSQL and Redis run in Docker containers. If Docker is not started or containers are stopped, the entire backend fails. Currently blocking all split operations.
-- **Mitigation:** Add a startup health-check endpoint that verifies DB and Redis connectivity. Document the `docker-compose up` requirement prominently.
-- **Severity:** Critical (currently active)
+- **Description:** PostgreSQL and Redis run natively (not Docker in this environment). If either service goes down, the backend will fail.
+- **Mitigation:** Add a startup health-check endpoint that verifies DB and Redis connectivity.
+- **Severity:** Medium

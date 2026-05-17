@@ -18,6 +18,8 @@ interface PdfPagePreviewProps {
   accentColor: string;
   filePath: string;
   onRangeUpdate: (ranges: PageRange[]) => void;
+  extractMode?: 'extractAll' | 'select';
+  selectedPages?: number[];
 }
 
 const RANGE_COLORS = [
@@ -36,11 +38,12 @@ export default function PdfPagePreview({
   accentColor,
   filePath,
   onRangeUpdate,
+  extractMode = 'extractAll',
+  selectedPages = [],
 }: PdfPagePreviewProps) {
   const [pageImages, setPageImages] = useState<Record<number, string>>({});
   const [loadingPages, setLoadingPages] = useState<Set<number>>(new Set());
 
-  // Fetch page images from the server
   useEffect(() => {
     if (!filePath || totalPages === 0) return;
 
@@ -48,8 +51,6 @@ export default function PdfPagePreview({
       const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
       const newImages: Record<number, string> = {};
       const newLoading = new Set<number>();
-
-      // Only load first 50 pages for performance
       const pagesToLoad = Math.min(totalPages, 50);
 
       for (let p = 1; p <= pagesToLoad; p++) {
@@ -57,18 +58,15 @@ export default function PdfPagePreview({
           newImages[p] = pageImages[p];
           continue;
         }
-
         newLoading.add(p);
       }
 
       setLoadingPages(newLoading);
 
-      // Fetch pages in batches of 5
       for (let batch = 0; batch < pagesToLoad; batch += 5) {
         const promises = [];
         for (let p = batch + 1; p <= Math.min(batch + 5, pagesToLoad); p++) {
           if (pageImages[p]) continue;
-
           promises.push(
             fetch(`${API_BASE}/split/render-page`, {
               method: 'POST',
@@ -82,9 +80,7 @@ export default function PdfPagePreview({
                   newImages[p] = url;
                 }
               })
-              .catch(() => {
-                // Ignore errors for individual pages
-              })
+              .catch(() => {})
           );
         }
         await Promise.all(promises);
@@ -96,7 +92,6 @@ export default function PdfPagePreview({
 
     fetchPageImages();
 
-    // Cleanup URLs on unmount
     return () => {
       Object.values(pageImages).forEach((url) => {
         if (url.startsWith('blob:')) {
@@ -135,9 +130,16 @@ export default function PdfPagePreview({
 
     if (splitMode === 'pages') {
       const computed: PageRange[] = [];
-      if (pagesPerFile > 0) {
-        for (let i = 0; i < totalPages; i += pagesPerFile) {
-          computed.push({ id: `pages-${i}`, from: i + 1, to: Math.min(i + pagesPerFile, totalPages) });
+      if (extractMode === 'select') {
+        for (const p of selectedPages) {
+          if (p >= 1 && p <= totalPages) {
+            computed.push({ id: `sel-${p}`, from: p, to: p });
+          }
+        }
+      } else {
+        const ppf = pagesPerFile || 1;
+        for (let i = 0; i < totalPages; i += ppf) {
+          computed.push({ id: `pages-${i}`, from: i + 1, to: Math.min(i + ppf, totalPages) });
         }
       }
       return computed;
@@ -148,7 +150,6 @@ export default function PdfPagePreview({
 
   const computedRanges = getComputedRanges();
 
-  // Group pages by range
   const groupedPages: Record<number, number[]> = {};
   const unassignedPages: number[] = [];
 
@@ -160,11 +161,61 @@ export default function PdfPagePreview({
     } else if (splitMode === 'range' && rangeMode === 'custom') {
       unassignedPages.push(p);
     } else {
-      // For fixed/pages mode, all pages belong to a range
       if (!groupedPages[0]) groupedPages[0] = [];
       groupedPages[0].push(p);
     }
   }
+
+  const isPageSelected = (pageNum: number): boolean => {
+    if (splitMode === 'pages' && extractMode === 'select') {
+      return selectedPages.includes(pageNum);
+    }
+    return true;
+  };
+
+  const renderPageThumbnail = (pageNum: number, borderColor: string, dimmed: boolean = false) => {
+    const selected = isPageSelected(pageNum);
+
+    return (
+      <div key={pageNum} className="group relative">
+        <div
+          className={`w-[72px] rounded-lg border-2 overflow-hidden transition-all hover:scale-105 hover:shadow-lg cursor-default ${dimmed ? 'opacity-50' : ''}`}
+          style={{ borderColor }}
+        >
+          <div className="h-[96px] bg-white dark:bg-slate-800 flex items-center justify-center overflow-hidden relative">
+            {pageImages[pageNum] ? (
+              <img
+                src={pageImages[pageNum]}
+                alt={`Page ${pageNum}`}
+                className="w-full h-full object-contain"
+                loading="lazy"
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center w-full h-full" style={{ backgroundColor: `${borderColor}08` }}>
+                {loadingPages.has(pageNum) ? (
+                  <div className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor, borderTopColor: 'transparent' }} />
+                ) : (
+                  <span className="text-lg font-bold" style={{ color: `${borderColor}60` }}>{pageNum}</span>
+                )}
+              </div>
+            )}
+
+            {splitMode === 'pages' && extractMode === 'select' && selected && (
+              <div className="absolute top-1 right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center shadow-md">
+                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+            )}
+          </div>
+
+          <div className="py-1 text-center" style={{ backgroundColor: `${borderColor}10` }}>
+            <span className="text-[10px] font-medium" style={{ color: borderColor }}>{pageNum}</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const renderRangeGroup = (rangeIdx: number, pages: number[]) => {
     const color = RANGE_COLORS[rangeIdx % RANGE_COLORS.length];
@@ -173,52 +224,20 @@ export default function PdfPagePreview({
 
     return (
       <div key={`range-${rangeIdx}`} className="mb-5">
-        {/* Range header */}
         <div className="flex items-center gap-2 mb-2">
           <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
           <span className="text-xs font-semibold" style={{ color }}>
-            Range {rangeIdx + 1}
+            {splitMode === 'pages' && extractMode === 'select' ? 'Selected Page' : `Range ${rangeIdx + 1}`}
           </span>
-          <span className="text-[10px] text-slate-400">
-            pages {range.from}–{range.to} ({pages.length} page{pages.length !== 1 ? 's' : ''})
-          </span>
+          {extractMode !== 'select' && (
+            <span className="text-[10px] text-slate-400 dark:text-slate-500">
+              pages {range.from}–{range.to} ({pages.length} page{pages.length !== 1 ? 's' : ''})
+            </span>
+          )}
         </div>
 
-        {/* Page thumbnails */}
         <div className="flex flex-wrap gap-2 pl-5">
-          {pages.map((pageNum) => (
-            <div key={pageNum} className="group relative">
-              <div
-                className="w-[72px] rounded-lg border-2 overflow-hidden transition-all hover:scale-105 hover:shadow-lg cursor-default"
-                style={{ borderColor: color }}
-              >
-                {/* Page image or placeholder */}
-                <div className="h-[96px] bg-white flex items-center justify-center overflow-hidden">
-                  {pageImages[pageNum] ? (
-                    <img
-                      src={pageImages[pageNum]}
-                      alt={`Page ${pageNum}`}
-                      className="w-full h-full object-contain"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center w-full h-full" style={{ backgroundColor: `${color}08` }}>
-                      {loadingPages.has(pageNum) ? (
-                        <div className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: color, borderTopColor: 'transparent' }} />
-                      ) : (
-                        <span className="text-lg font-bold" style={{ color: `${color}60` }}>{pageNum}</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Page number label */}
-                <div className="py-1 text-center" style={{ backgroundColor: `${color}10` }}>
-                  <span className="text-[10px] font-medium" style={{ color }}>{pageNum}</span>
-                </div>
-              </div>
-            </div>
-          ))}
+          {pages.map((pageNum) => renderPageThumbnail(pageNum, color, false))}
         </div>
       </div>
     );
@@ -230,23 +249,23 @@ export default function PdfPagePreview({
     return (
       <div className="mb-5">
         <div className="flex items-center gap-2 mb-2">
-          <div className="w-3 h-3 rounded-full bg-slate-300 flex-shrink-0" />
-          <span className="text-xs font-semibold text-slate-400">Unassigned</span>
-          <span className="text-[10px] text-slate-300">{pages.length} pages</span>
+          <div className="w-3 h-3 rounded-full bg-slate-300 dark:bg-slate-600 flex-shrink-0" />
+          <span className="text-xs font-semibold text-slate-400 dark:text-slate-500">Unassigned</span>
+          <span className="text-[10px] text-slate-300 dark:text-slate-600">{pages.length} pages</span>
         </div>
         <div className="flex flex-wrap gap-2 pl-5">
           {pages.map((pageNum) => (
             <div key={`unassigned-${pageNum}`}>
-              <div className="w-[72px] rounded-lg border-2 border-dashed border-slate-300 overflow-hidden">
-                <div className="h-[96px] bg-slate-50 flex items-center justify-center">
+              <div className="w-[72px] rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-600 overflow-hidden">
+                <div className="h-[96px] bg-slate-50 dark:bg-slate-800 flex items-center justify-center">
                   {pageImages[pageNum] ? (
                     <img src={pageImages[pageNum]} alt={`Page ${pageNum}`} className="w-full h-full object-contain opacity-50" loading="lazy" />
                   ) : (
-                    <span className="text-lg font-bold text-slate-300">{pageNum}</span>
+                    <span className="text-lg font-bold text-slate-300 dark:text-slate-600">{pageNum}</span>
                   )}
                 </div>
-                <div className="py-1 text-center bg-slate-50">
-                  <span className="text-[10px] text-slate-400">{pageNum}</span>
+                <div className="py-1 text-center bg-slate-50 dark:bg-slate-800">
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500">{pageNum}</span>
                 </div>
               </div>
             </div>
@@ -256,21 +275,52 @@ export default function PdfPagePreview({
     );
   };
 
+  const renderAllPages = () => {
+    if (splitMode !== 'pages') return null;
+
+    return (
+      <div className="mb-5">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: '#22C55E' }} />
+          <span className="text-xs font-semibold" style={{ color: '#22C55E' }}>
+            {extractMode === 'extractAll' ? 'All Pages' : 'Select Pages'}
+          </span>
+          <span className="text-[10px] text-slate-400 dark:text-slate-500">
+            {extractMode === 'extractAll' ? `${totalPages} page${totalPages !== 1 ? 's' : ''}` : `${selectedPages.length} selected`}
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-2 pl-5">
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) =>
+            renderPageThumbnail(pageNum, extractMode === 'select' && !selectedPages.includes(pageNum) ? '#CBD5E1' : '#22C55E',
+              extractMode === 'select' && !selectedPages.includes(pageNum))
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="overflow-y-auto max-h-[65vh] pr-1">
-      {Object.keys(groupedPages)
-        .sort((a, b) => parseInt(a) - parseInt(b))
-        .map((rangeIdx) => renderRangeGroup(parseInt(rangeIdx), groupedPages[parseInt(rangeIdx)]))}
-      {renderUnassignedPages(unassignedPages)}
+      {splitMode === 'pages' && extractMode !== 'select'
+        ? renderAllPages()
+        : (
+          <>
+            {Object.keys(groupedPages)
+              .sort((a, b) => parseInt(a) - parseInt(b))
+              .map((rangeIdx) => renderRangeGroup(parseInt(rangeIdx), groupedPages[parseInt(rangeIdx)]))}
+            {renderUnassignedPages(unassignedPages)}
+          </>
+        )
+      }
 
       {totalPages === 0 && (
-        <div className="text-center py-12 text-slate-400 text-sm">
+        <div className="text-center py-12 text-slate-400 dark:text-slate-500 text-sm">
           Upload a PDF to preview pages
         </div>
       )}
 
       {totalPages > 50 && (
-        <p className="text-[10px] text-slate-400 text-center py-2">
+        <p className="text-[10px] text-slate-400 dark:text-slate-500 text-center py-2">
           Showing first 50 pages of {totalPages}
         </p>
       )}
