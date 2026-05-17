@@ -6,6 +6,7 @@ import { convertRouter } from './routes/convert';
 import { downloadRouter } from './routes/download';
 import { mergeRouter } from './routes/merge';
 import { splitRouter } from './routes/split';
+import { compressRouter } from './routes/compress';
 import { cloudRouter } from './routes/cloud';
 import { dropboxAuthRouter } from './routes/dropbox-auth';
 import { errorHandler } from './middleware/error.middleware';
@@ -25,6 +26,7 @@ app.use('/api/convert', convertRouter);
 app.use('/api/download', downloadRouter);
 app.use('/api/merge', mergeRouter);
 app.use('/api/split', splitRouter);
+app.use('/api/compress', compressRouter);
 app.use('/api/cloud', cloudRouter);
 app.use('/api/dropbox-auth', dropboxAuthRouter);
 

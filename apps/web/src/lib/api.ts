@@ -86,6 +86,31 @@ class ApiClient {
   getSplitDownloadUrl(jobId: string, fileIndex: number): string { return `${this.baseUrl}/split/download/${jobId}/${fileIndex}`; }
 
   getSplitDownloadAllUrl(jobId: string): string { return `${this.baseUrl}/split/download-all/${jobId}`; }
+
+  // ===== Compress PDF =====
+
+  async uploadCompressFile(file: File, quality: string = 'medium'): Promise<any> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('quality', quality);
+    const response = await fetch(`${this.baseUrl}/compress/upload`, { method: 'POST', body: formData });
+    if (!response.ok) { const error = await response.json().catch(() => ({ message: 'Upload failed' })); throw new Error(error.message); }
+    return response.json();
+  }
+
+  async startCompress(id: string, quality: string = 'medium'): Promise<any> {
+    const response = await fetch(`${this.baseUrl}/compress/${id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quality }) });
+    if (!response.ok) { const error = await response.json().catch(() => ({ message: 'Compress failed' })); throw new Error(error.message); }
+    return response.json();
+  }
+
+  async getCompressStatus(id: string): Promise<any> {
+    const response = await fetch(`${this.baseUrl}/compress/status/${id}`);
+    if (!response.ok) { const error = await response.json().catch(() => ({ message: 'Status check failed' })); throw new Error(error.message); }
+    return response.json();
+  }
+
+  getCompressDownloadUrl(id: string): string { return `${this.baseUrl}/compress/download/${id}`; }
 }
 
 export const apiClient = new ApiClient(API_BASE);
